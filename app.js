@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
 const cors = require("cors");
-const axios = require('axios');
+const axios = require("axios");
 const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
 const app = express();
@@ -28,8 +28,8 @@ const initializeDBAndServer = async () => {
     console.log(`DB Error: ${e.message}`);
     process.exit(1);
   }
-  app.listen(3001, () => {
-    console.log("Server Running at http://localhost:3001/");
+  app.listen(3002, () => {
+    console.log("Server Running at http://localhost:3002/");
   });
 };
 
@@ -56,36 +56,37 @@ const createTable = async () => {
 };
 
 const insertValues = async () => {
-    console.log("hi");
-    const url = "https://s3.amazonaws.com/roxiler.com/product_transaction.json";
-    try {
-        const response = await axios.get(url);
-        const data = response.data;
-        console.log(data);
-        for (const product of data) {
-            await db.run(
-                `
+  console.log("hi");
+  const url = "https://s3.amazonaws.com/roxiler.com/product_transaction.json";
+  try {
+    const response = await axios.get(url);
+    const data = response.data;
+    console.log(data);
+    for (const product of data) {
+      await db.run(
+        `
                 INSERT INTO transactions (id, title, price, description, category, image, sold, dateOfSale) VALUES
                 (?, ?, ?, ?, ?, ?, ?, ?)
                 `,
-                [
-                    product.id,
-                    product.title,
-                    product.price,
-                    product.description,
-                    product.category,
-                    product.image,
-                    product.sold,
-                    product.dateOfSale,
-                ]
-            );
-        }
-        console.log("Added Successful");
-    } catch (error) {
-        console.error("Error:", error);
+        [
+          product.id,
+          product.title,
+          product.price,
+          product.description,
+          product.category,
+          product.image,
+          product.sold,
+          product.dateOfSale,
+        ]
+      );
     }
+    console.log("Added Successful");
+  } catch (error) {
+    console.error("Error:", error);
+  }
 };
 
+//api-1
 app.get("/transactions-details", cors(), async (req, res) => {
   let { month } = req.query;
   const getAllTransactionquery = `
@@ -108,6 +109,7 @@ app.get("/transactions-details", cors(), async (req, res) => {
   res.send(transactions);
 });
 
+// api-2
 app.get("/sales-details", cors(), async (req, res) => {
   let { month } = req.query;
   const getSalesDetailsQuery = `
@@ -123,6 +125,7 @@ app.get("/sales-details", cors(), async (req, res) => {
   res.send(sales);
 });
 
+//api-3
 app.get("/price-range", cors(), async (req, response) => {
   const { month } = req.query;
   const getPriceRangeQuery = `
@@ -136,4 +139,17 @@ app.get("/price-range", cors(), async (req, response) => {
 
   const priceRange = await db.all(getPriceRangeQuery);
   response.send(priceRange);
+});
+
+//api-4
+app.get("/category-statistics", cors(), async (req, res) => {
+  const { month } = req.query;
+  const query = `
+    SELECT category, COUNT(*) AS itemCount
+    FROM transactions
+    WHERE strftime('%m', dateOfSale) = '${month}'
+    GROUP BY category;
+  `;
+  const data = await db.all(query);
+  res.send(data);
 });
